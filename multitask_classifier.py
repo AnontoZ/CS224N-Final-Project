@@ -74,7 +74,7 @@ class MultitaskBERT(nn.Module):
         # You will want to add layers here to perform the downstream tasks.
         ### TODO
         self.last_dropout = torch.nn.Dropout(config.hidden_dropout_prob)
-        self.last_sentiment = torch.nn.Linear(config.hidden_size, self.num_labels)
+        self.last_sentiment = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.last_para = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 1)
         self.last_similar = torch.nn.Linear(config.hidden_size, config.hidden_size, 1)
 
