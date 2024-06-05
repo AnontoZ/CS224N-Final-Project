@@ -34,6 +34,7 @@ from datasets import (
 
 from evaluation import model_eval_sst, model_eval_multitask, model_eval_test_multitask, model_eval_para, model_eval_sts
 
+import os
 
 TQDM_DISABLE=False
 
@@ -74,7 +75,7 @@ class MultitaskBERT(nn.Module):
         # You will want to add layers here to perform the downstream tasks.
         ### TODO
         self.last_dropout = torch.nn.Dropout(config.hidden_dropout_prob)
-        self.last_sentiment = torch.nn.Linear(config.hidden_size, config.num_labels)
+        self.last_sentiment = torch.nn.Linear(config.hidden_size, len(config.num_labels))
         self.last_para = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 1)
         self.last_similar = torch.nn.Linear(config.hidden_size, config.hidden_size, 1)
 
@@ -200,11 +201,11 @@ def train_multitask(args):
         print('Loading previously trained model')
         model.load_state_dict(torch.load(args.model_path))
         
-
+    
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
-
+    
     # Run for the specified number of epochs.
     print('Training sentiment analysis')
     for epoch in range(args.epochs):
@@ -262,7 +263,8 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            
+            loss = F.binary_cross_entropy(torch.sigmoid(torch.squeeze(logits)).float(), b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
             loss.backward()
             optimizer.step()
@@ -303,8 +305,8 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
-
+            loss = F.binary_cross_entropy(torch.sigmoid(torch.squeeze(logits)).float(), b_labels.view(-1).float(), reduction='sum') / args.batch_size
+            
             loss.backward()
             optimizer.step()
 
