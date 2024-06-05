@@ -106,6 +106,7 @@ def model_eval_sts(sts_dataloader,
 
             logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
             y_hat = logits.flatten().cpu().numpy()
+            y_hat = np.argmax(y_hat, axis=1).flatten()
             b_labels = b_labels.flatten().cpu().numpy()
 
             sts_y_pred.extend(y_hat)
