@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # CS 224N Default Final Project - Multitask BERT
 
 This is the default final project for the Stanford CS 224N class. Please refer to the project handout on the course website for detailed instructions and an overview of the codebase.
@@ -26,7 +25,3 @@ The BERT implementation part of the project was adapted from the "minbert" assig
 created by Shuyan Zhou, Zhengbao Jiang, Ritam Dutt, Brendon Boldt, Aditya Veerubhotla, and Graham Neubig.
 
 Parts of the code are from the [`transformers`](https://github.com/huggingface/transformers) library ([Apache License 2.0](./LICENSE)).
-=======
-# CS224N-Final-Project
-Final project for CS224N
->>>>>>> 4ff7ad11735be0d69334e236dc60157c3b9e3eda
