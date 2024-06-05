@@ -209,8 +209,8 @@ def train_simultaneous(args):
         num_batches = 0
         for i in tqdm(range(1000)):
             batch_sst = next(iter(sst_train_dataloader))
-            batch_para = next(iter(para_train_data))
-            batch_sts = next(iter(sts_train_data))
+            batch_para = next(iter(para_train_dataloader))
+            batch_sts = next(iter(sts_train_dataloader))
 
             b_sst_ids, b_sst_mask, b_sst_labels = (batch_sst['token_ids'],
                                        batch_sst['attention_mask'], batch_sst['labels'])
@@ -366,6 +366,7 @@ def train_multitask(args):
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
+
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
@@ -377,7 +378,7 @@ def train_multitask(args):
         num_batches = 0
         # for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
         for _ in tqdm(range(1000)):
-            batch = next(iter(para_train_data))
+            batch = next(iter(para_train_dataloader))
             b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (batch['token_ids_1'],
                                        batch['attention_mask_1'], batch['token_ids_2'], 
                                        batch['attention_mask_2'], batch['labels'])
