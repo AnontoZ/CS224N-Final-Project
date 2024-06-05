@@ -330,7 +330,7 @@ def train_multitask(args):
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
-    """
+    
     # Run for the specified number of epochs.
     print('Training sentiment analysis')
     for epoch in range(args.epochs):
@@ -414,7 +414,6 @@ def train_multitask(args):
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
-    """
     # Run for the specified number of epochs.
     print('Training STS')
     for epoch in range(args.epochs):
@@ -475,25 +474,25 @@ def test_multitask(args):
         sst_test_data = SentenceClassificationTestDataset(sst_test_data, args)
         sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
 
-        sst_test_dataloader = DataLoader(sst_test_data, shuffle=True, batch_size=args.batch_size,
+        sst_test_dataloader = DataLoader(sst_test_data, shuffle=True, batch_size=args.sst_batch_size,
                                          collate_fn=sst_test_data.collate_fn)
-        sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
+        sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.sst_batch_size,
                                         collate_fn=sst_dev_data.collate_fn)
 
         para_test_data = SentencePairTestDataset(para_test_data, args)
         para_dev_data = SentencePairDataset(para_dev_data, args)
 
-        para_test_dataloader = DataLoader(para_test_data, shuffle=True, batch_size=args.batch_size,
+        para_test_dataloader = DataLoader(para_test_data, shuffle=True, batch_size=args.para_batch_size,
                                           collate_fn=para_test_data.collate_fn)
-        para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
+        para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.para_batch_size,
                                          collate_fn=para_dev_data.collate_fn)
 
         sts_test_data = SentencePairTestDataset(sts_test_data, args)
         sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
-        sts_test_dataloader = DataLoader(sts_test_data, shuffle=True, batch_size=args.batch_size,
+        sts_test_dataloader = DataLoader(sts_test_data, shuffle=True, batch_size=args.sts_batch_size,
                                          collate_fn=sts_test_data.collate_fn)
-        sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
+        sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.sts_batch_size,
                                         collate_fn=sts_dev_data.collate_fn)
 
         dev_sentiment_accuracy,dev_sst_y_pred, dev_sst_sent_ids, \
