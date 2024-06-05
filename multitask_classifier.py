@@ -125,7 +125,7 @@ class MultitaskBERT(nn.Module):
         ### TODO
         bert_out_1 = self.forward(input_ids_1, attention_mask_1)
         bert_out_2 = self.forward(input_ids_2, attention_mask_2)
-        pred = self.last_similar(self.last_dropout(bert_out_1['pooler_output']), self.last_dropout(bert_out_2['pooler_output']))
+        pred = 5*F.sigmoid(self.last_similar(self.last_dropout(bert_out_1['pooler_output']), self.last_dropout(bert_out_2['pooler_output'])))
         return pred
 
 
@@ -259,7 +259,7 @@ def train_simultaneous(args):
         dev_acc_sst, dev_f1, *_ = model_eval_sst(sst_dev_dataloader, model, device)
         # train_acc_para, train_f1, *_ = model_eval_para(para_train_dataloader, model, device)
         dev_acc_para, dev_f1, *_ = model_eval_para(para_dev_dataloader, model, device)
-        dev_acc_sts, def_f1, *_ = model_eval_sts(sts_dev_data, model, device)
+        dev_acc_sts, def_f1, *_ = model_eval_sts(sts_dev_dataloader, model, device)
 
         dev_acc = (dev_acc_sst + dev_acc_para + dev_acc_sts)/3
 
