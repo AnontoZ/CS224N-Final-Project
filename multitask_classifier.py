@@ -330,7 +330,7 @@ def train_multitask(args):
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
-
+    """
     # Run for the specified number of epochs.
     print('Training sentiment analysis')
     for epoch in range(args.epochs):
@@ -414,8 +414,7 @@ def train_multitask(args):
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
-    
-    os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+    """
     # Run for the specified number of epochs.
     print('Training STS')
     for epoch in range(args.epochs):
