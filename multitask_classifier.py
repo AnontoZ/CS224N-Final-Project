@@ -145,6 +145,121 @@ def save_model(model, optimizer, args, config, filepath):
     torch.save(save_info, filepath)
     print(f"save the model to {filepath}")
 
+def train_simultaneous(args):
+    '''Train MultitaskBERT.
+    Train using all loss functions for all tasks
+    '''
+    device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+    # Create the data and its corresponding datasets and dataloader.
+    sst_train_data, num_labels,para_train_data, sts_train_data = load_multitask_data(args.sst_train,args.para_train,args.sts_train, split ='train')
+    sst_dev_data, num_labels,para_dev_data, sts_dev_data = load_multitask_data(args.sst_dev,args.para_dev,args.sts_dev, split ='train')
+
+    sst_train_data = SentenceClassificationDataset(sst_train_data, args)
+    sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
+
+    sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.sst_batch_size,
+                                      collate_fn=sst_train_data.collate_fn)
+    sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.sst_batch_size,
+                                    collate_fn=sst_dev_data.collate_fn)
+    
+    para_train_data = SentencePairDataset(para_train_data, args)
+    para_dev_data = SentencePairDataset(para_dev_data, args)
+
+    para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.para_batch_size,
+                                       collate_fn=para_train_data.collate_fn)
+    
+    para_dev_dataloader = DataLoader(para_dev_data, shuffle=True, batch_size=args.para_batch_size,
+                                       collate_fn=para_dev_data.collate_fn)
+    
+    sts_train_data = SentencePairDataset(sts_train_data, args)
+    sts_dev_data = SentencePairDataset(sts_dev_data, args)
+
+    sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.sts_batch_size,
+                                       collate_fn=sts_train_data.collate_fn)
+    
+    sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=True, batch_size=args.sts_batch_size,
+                                       collate_fn=sts_dev_data.collate_fn)
+
+    # Init model.
+    config = {'hidden_dropout_prob': args.hidden_dropout_prob,
+              'num_labels': num_labels,
+              'hidden_size': 768,
+              'data_dir': '.',
+              'fine_tune_mode': args.fine_tune_mode}
+
+    config = SimpleNamespace(**config)
+
+    model = MultitaskBERT(config)
+    model = model.to(device)
+    
+    if args.model_path is not None:
+        print('Loading previously trained model')
+        model.load_state_dict(torch.load(args.model_path))
+        
+    
+    lr = args.lr
+    optimizer = AdamW(model.parameters(), lr=lr)
+    best_dev_acc = 0
+    
+    # Run for the specified number of epochs.
+    print('Training alltogether')
+    for epoch in range(args.epochs):
+        model.train()
+        train_loss = 0
+        num_batches = 0
+        for i in tqdm(range(1000)):
+            batch_sst = next(iter(sst_train_dataloader))
+            batch_para = next(iter(para_train_data))
+            batch_sts = next(iter(sts_train_data))
+
+            b_sst_ids, b_sst_mask, b_sst_labels = (batch_sst['token_ids'],
+                                       batch_sst['attention_mask'], batch_sst['labels'])
+
+            b_sst_ids = b_sst_ids.to(device)
+            b_sst_mask = b_sst_mask.to(device)
+            b_sst_labels = b_sst_labels.to(device)
+
+            b_para_ids_1, b_para_mask_1, b_para_ids_2, b_para_mask_2, b_para_labels = (batch_para['token_ids_1'],
+                                       batch_para['attention_mask_1'], batch_para['token_ids_2'], 
+                                       batch_para['attention_mask_2'], batch_para['labels'])
+            
+            b_para_ids_1 = b_para_ids_1.to(device)
+            b_para_mask_1 = b_para_mask_1.to(device)
+            b_para_ids_2 = b_para_ids_2.to(device)
+            b_para_mask_2 = b_para_mask_2.to(device)
+            b_para_labels = b_para_labels.to(device)
+
+            b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2, b_sts_labels = (batch_sts['token_ids_1'],
+                                       batch_sts['attention_mask_1'], batch_sts['token_ids_2'], 
+                                       batch_sts['attention_mask_2'], batch_sts['labels'])
+
+            optimizer.zero_grad()
+
+            logits_sst = model.predict_sentiment(b_sst_ids, b_sst_mask)
+            loss_sst = F.cross_entropy(logits, b_sst_labels.view(-1), reduction='sum') / args.sst_batch_size
+
+            logits_para = model.predict_paraphrase(b_para_ids_1, b_para_mask_1, b_para_ids_2, b_para_mask_2)
+            loss_para = F.binary_cross_entropy(torch.sigmoid(torch.squeeze(logits_para)).float(), b_para_labels.view(-1).float(), reduction='sum') / args.batch_size
+
+
+
+            loss.backward()
+            optimizer.step()
+
+            train_loss += loss.item()
+            num_batches += 1
+
+        train_loss = train_loss / (num_batches)
+
+        train_acc, train_f1, *_ = model_eval_sst(sst_train_dataloader, model, device)
+        dev_acc, dev_f1, *_ = model_eval_sst(sst_dev_dataloader, model, device)
+
+        if dev_acc > best_dev_acc:
+            best_dev_acc = dev_acc
+            save_model(model, optimizer, args, config, args.filepath)
+
+        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+
 
 def train_multitask(args):
     '''Train MultitaskBERT.
@@ -452,13 +567,15 @@ def get_args():
 
     parser.add_argument("--model_path", type=str, default=None)
 
+    parser.add_argument("--file_prefix", type=str, default="")
+
     args = parser.parse_args()
     return args
 
 
 if __name__ == "__main__":
     args = get_args()
-    args.filepath = f'{args.fine_tune_mode}-{args.epochs}-{args.lr}-multitask.pt' # Save path.
+    args.filepath = f'{args.file_prefix}{args.fine_tune_mode}-{args.epochs}-{args.lr}-multitask.pt' # Save path.
     seed_everything(args.seed)  # Fix the seed for reproducibility.
-    train_multitask(args)
+    train_simultaneous(args)
     test_multitask(args)
