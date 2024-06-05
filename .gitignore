@@ -1,2 +1,6 @@
 predictions/
 __pycache__/
+.vscode/
+models/
+
+
