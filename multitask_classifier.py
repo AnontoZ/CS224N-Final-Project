@@ -162,27 +162,27 @@ def train_multitask(args):
     sst_train_data = SentenceClassificationDataset(sst_train_data, args)
     sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
 
-    sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
+    sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.sst_batch_size,
                                       collate_fn=sst_train_data.collate_fn)
-    sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
+    sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.sst_batch_size,
                                     collate_fn=sst_dev_data.collate_fn)
     
     para_train_data = SentencePairDataset(para_train_data, args)
     para_dev_data = SentencePairDataset(para_dev_data, args)
 
-    para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size,
+    para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.para_batch_size,
                                        collate_fn=para_train_data.collate_fn)
     
-    para_dev_dataloader = DataLoader(para_dev_data, shuffle=True, batch_size=args.batch_size,
+    para_dev_dataloader = DataLoader(para_dev_data, shuffle=True, batch_size=args.para_batch_size,
                                        collate_fn=para_dev_data.collate_fn)
     
     sts_train_data = SentencePairDataset(sts_train_data, args)
     sts_dev_data = SentencePairDataset(sts_dev_data, args)
 
-    sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
+    sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.sts_batch_size,
                                        collate_fn=sts_train_data.collate_fn)
     
-    sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=True, batch_size=args.batch_size,
+    sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=True, batch_size=args.sts_batch_size,
                                        collate_fn=sts_dev_data.collate_fn)
 
     # Init model.
@@ -443,7 +443,10 @@ def get_args():
     parser.add_argument("--sts_dev_out", type=str, default="predictions/sts-dev-output.csv")
     parser.add_argument("--sts_test_out", type=str, default="predictions/sts-test-output.csv")
 
-    parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
+    parser.add_argument("--sst_batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
+    parser.add_argument("--para_batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=64)
+    parser.add_argument("--sts_batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
+
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-5)
 
