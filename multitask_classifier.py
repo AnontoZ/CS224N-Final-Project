@@ -232,6 +232,12 @@ def train_simultaneous(args):
             b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2, b_sts_labels = (batch_sts['token_ids_1'],
                                        batch_sts['attention_mask_1'], batch_sts['token_ids_2'], 
                                        batch_sts['attention_mask_2'], batch_sts['labels'])
+            b_sts_ids_1 = b_sts_ids_1.to(device)
+            b_sts_mask_1 = b_sts_mask_1.to(device)
+            b_sts_ids_2 = b_sts_ids_2.to(device)
+            b_sts_mask_2 = b_sts_mask_2.to(device)
+            b_sts_labels = b_sts_labels.to(device)
+
 
             optimizer.zero_grad()
 
@@ -239,11 +245,12 @@ def train_simultaneous(args):
             loss_sst = F.cross_entropy(logits_sst, b_sst_labels.view(-1), reduction='sum') / args.sst_batch_size
 
             logits_para = model.predict_paraphrase(b_para_ids_1, b_para_mask_1, b_para_ids_2, b_para_mask_2)
-            loss_para = F.binary_cross_entropy(torch.sigmoid(torch.squeeze(logits_para)).float(), b_para_labels.view(-1).float(), reduction='sum') / args.batch_size
+            loss_para = F.binary_cross_entropy(torch.sigmoid(torch.squeeze(logits_para)).float(), b_para_labels.view(-1).float(), reduction='sum') / args.para_batch_size
 
             logits_sts = model.predict_similarity(b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2)            
-            loss_sts = F.cross_entropy(logits_sts, b_sts_labels.view(-1), reduction='sum') / args.sts_batch_size
+            # loss_sts = F.cross_entropy(logits_sts, b_sts_labels.view(-1), reduction='sum') / args.sts_batch_size
 
+            loss_sts = torch.sum(1 - F.cosine_similarity(logits_sts, b_sts_labels.view(-1))) / args.sts_batch_size
             # Sum loss
             loss = loss_sst + loss_para + loss_sts
 
@@ -433,7 +440,7 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)            
-            loss = torch.sum(F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
+            loss = torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
 
             loss.backward()
             optimizer.step()
@@ -582,6 +589,8 @@ def get_args():
 
     parser.add_argument("--file_prefix", type=str, default="")
 
+    parser.add_argument("--train_type", type=str, default=None)
+
     args = parser.parse_args()
     return args
 
@@ -590,6 +599,10 @@ if __name__ == "__main__":
     args = get_args()
     args.filepath = f'{args.file_prefix}{args.fine_tune_mode}-{args.epochs}-{args.lr}-multitask.pt' # Save path.
     seed_everything(args.seed)  # Fix the seed for reproducibility.
-    train_multitask(args)
-    # train_simultaneous(args)
+    if args.train_type is None:
+        train_multitask(args)
+    elif args.train_type == "simultaneous":
+        train_simultaneous(args)
+    else:
+        print("Not training") 
     test_multitask(args)
