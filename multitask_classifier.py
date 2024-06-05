@@ -236,12 +236,16 @@ def train_simultaneous(args):
             optimizer.zero_grad()
 
             logits_sst = model.predict_sentiment(b_sst_ids, b_sst_mask)
-            loss_sst = F.cross_entropy(logits, b_sst_labels.view(-1), reduction='sum') / args.sst_batch_size
+            loss_sst = F.cross_entropy(logits_sst, b_sst_labels.view(-1), reduction='sum') / args.sst_batch_size
 
             logits_para = model.predict_paraphrase(b_para_ids_1, b_para_mask_1, b_para_ids_2, b_para_mask_2)
             loss_para = F.binary_cross_entropy(torch.sigmoid(torch.squeeze(logits_para)).float(), b_para_labels.view(-1).float(), reduction='sum') / args.batch_size
 
+            logits_sts = model.predict_similarity(b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2)            
+            loss_sts = F.cross_entropy(logits_sts, b_sts_labels.view(-1), reduction='sum') / args.sts_batch_size
 
+            # Sum loss
+            loss = loss_sst + loss_para + loss_sts
 
             loss.backward()
             optimizer.step()
@@ -252,7 +256,12 @@ def train_simultaneous(args):
         train_loss = train_loss / (num_batches)
 
         train_acc, train_f1, *_ = model_eval_sst(sst_train_dataloader, model, device)
-        dev_acc, dev_f1, *_ = model_eval_sst(sst_dev_dataloader, model, device)
+        dev_acc_sst, dev_f1, *_ = model_eval_sst(sst_dev_dataloader, model, device)
+        # train_acc_para, train_f1, *_ = model_eval_para(para_train_dataloader, model, device)
+        dev_acc_para, dev_f1, *_ = model_eval_para(para_dev_dataloader, model, device)
+        dev_acc_sts, def_f1, *_ = model_eval_sts(sts_dev_data, model, device)
+
+        dev_acc = (dev_acc_sst + dev_acc_para + dev_acc_sts)/3
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
@@ -366,7 +375,9 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+        # for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+        for _ in tqdm(range(1000)):
+            batch = next(iter(para_train_data))
             b_ids_1, b_mask_1, b_ids_2, b_mask_2, b_labels = (batch['token_ids_1'],
                                        batch['attention_mask_1'], batch['token_ids_2'], 
                                        batch['attention_mask_2'], batch['labels'])
@@ -390,7 +401,7 @@ def train_multitask(args):
 
         train_loss = train_loss / (num_batches)
 
-        train_acc, train_f1, *_ = model_eval_para(para_train_dataloader, model, device)
+        # train_acc, train_f1, *_ = model_eval_para(para_train_dataloader, model, device)       # evaluation on test takes too long
         dev_acc, dev_f1, *_ = model_eval_para(para_dev_dataloader, model, device)
 
         if dev_acc > best_dev_acc:
@@ -422,13 +433,9 @@ def train_multitask(args):
             b_labels = b_labels.to(device)
 
             optimizer.zero_grad()
-            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-
-            print(logits)
-            print(b_labels)
-            # loss = F.binary_cross_entropy(torch.sigmoid(torch.squeeze(logits)).float(), b_labels.view(-1).float(), reduction='sum') / args.sts_batch_size
-            
+            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)            
             loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.sts_batch_size
+
             loss.backward()
             optimizer.step()
 
