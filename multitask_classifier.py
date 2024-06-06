@@ -78,6 +78,7 @@ class MultitaskBERT(nn.Module):
         self.last_sentiment = torch.nn.Linear(config.hidden_size, len(config.num_labels))
         self.last_para = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 1)
         self.last_similar = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 1)
+        self.last_similar_linear = torch.nn.Linear(2*config.hidden_size, 1)
 
 
     def forward(self, input_ids, attention_mask):
@@ -125,7 +126,10 @@ class MultitaskBERT(nn.Module):
         ### TODO
         bert_out_1 = self.forward(input_ids_1, attention_mask_1)
         bert_out_2 = self.forward(input_ids_2, attention_mask_2)
-        pred = 5*F.sigmoid(self.last_similar(self.last_dropout(bert_out_1['pooler_output']), self.last_dropout(bert_out_2['pooler_output'])))
+        pred = self.last_similar(self.last_dropout(bert_out_1['pooler_output']), self.last_dropout(bert_out_2['pooler_output']))
+        # pred = 5*F.sigmoid(self.last_similar(self.last_dropout(bert_out_1['pooler_output']), self.last_dropout(bert_out_2['pooler_output'])))
+        # bert_cat = torch.cat((bert_out_1['pooler_output'], bert_out_2['pooler_output']), axis=1)
+        # pred = 5*F.sigmoid(self.last_similar_linear(self.last_dropout(bert_cat)))
         return pred
 
 
@@ -337,7 +341,7 @@ def train_multitask(args):
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
-    
+    """
     # Run for the specified number of epochs.
     print('Training sentiment analysis')
     for epoch in range(args.epochs):
@@ -417,7 +421,7 @@ def train_multitask(args):
             save_model(model, optimizer, args, config, args.filepath)
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
-
+    """
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
@@ -442,6 +446,7 @@ def train_multitask(args):
             logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)            
             loss = torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
 
+            # loss = F.mse_loss(torch.squeeze(logits.float()), b_labels.view(-1).float())
             loss.backward()
             optimizer.step()
 
