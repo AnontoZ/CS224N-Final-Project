@@ -130,6 +130,16 @@ class MultitaskBERT(nn.Module):
         pred = self.last_similar(self.last_dropout(bert_out_1['pooler_output']), self.last_dropout(bert_out_2['pooler_output']))
         return pred
 
+def sst_loss(logits, b_labels, args):
+    return F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.sst_batch_size
+
+def para_loss(logits, b_labels, args):
+    return F.binary_cross_entropy(torch.sigmoid(torch.squeeze(logits)).float(), b_labels.view(-1).float(), reduction='sum') / args.para_batch_size
+
+def sts_loss(logits, b_labels, args):
+    # Loss for STS task         
+    return torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
+
 def save_model(model, optimizer, args, config, filepath):
     save_info = {
         'model': model.state_dict(),
@@ -242,16 +252,16 @@ def train_PCGrad(args):
 
             logits_sst = model.predict_sentiment(b_sst_ids, b_sst_mask)
             # loss_sst = F.cross_entropy(logits_sst, b_sst_labels.view(-1), reduction='sum') / args.sst_batch_size
-            loss_sst = loss_sst(logits_sst, b_sst_labels, args)
+            l1 = sst_loss(logits_sst, b_sst_labels, args)
 
             logits_para = model.predict_paraphrase(b_para_ids_1, b_para_mask_1, b_para_ids_2, b_para_mask_2)
-            loss_para = loss_para(logits_para, b_para_labels, args)
+            l2 = para_loss(logits_para, b_para_labels, args)
 
             logits_sts = model.predict_similarity(b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2)            
-            loss_sts = loss_sts(logits_sts, b_sts_labels, args)
+            l3 = sts_loss(logits_sts, b_sts_labels, args)
             # Sum loss
-            loss_sum = loss_sst + loss_para + loss_sts
-            losses = [loss_sst, loss_para, loss_sts]
+            loss_sum = l1 + l2 + l3
+            losses = [l1, l2, l3]
 
             optimizer.pc_backward()
             optimizer.step()
@@ -373,15 +383,15 @@ def train_simultaneous(args):
 
             logits_sst = model.predict_sentiment(b_sst_ids, b_sst_mask)
             # loss_sst = F.cross_entropy(logits_sst, b_sst_labels.view(-1), reduction='sum') / args.sst_batch_size
-            loss_sst = loss_sst(logits_sst, b_sst_labels, args)
+            l1 = sst_loss(logits_sst, b_sst_labels, args)
 
             logits_para = model.predict_paraphrase(b_para_ids_1, b_para_mask_1, b_para_ids_2, b_para_mask_2)
-            loss_para = loss_para(logits_para, b_para_labels, args)
+            l2 = para_loss(logits_para, b_para_labels, args)
 
             logits_sts = model.predict_similarity(b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2)            
-            loss_sts = loss_sts(logits_sts, b_sts_labels, args)
+            l3 = sts_loss(logits_sts, b_sts_labels, args)
             # Sum loss
-            loss = loss_sst + loss_para + loss_sts
+            loss = l1 + l2 + l3
 
             loss.backward()
             optimizer.step()
@@ -591,17 +601,6 @@ def train_multitask(args):
             save_model(model, optimizer, args, config, args.filepath)
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
-
-def sst_loss(logits, b_labels, args):
-    return F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.sst_batch_size
-
-def para_loss(logits, b_labels, args):
-    return F.binary_cross_entropy(torch.sigmoid(torch.squeeze(logits)).float(), b_labels.view(-1).float(), reduction='sum') / args.para_batch_size
-
-def sts_loss(logits, b_labels, args):
-    # Loss for STS task         
-    return torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
-
 
 def test_multitask(args):
     '''Test and save predictions on the dev and test sets of all three tasks.'''
