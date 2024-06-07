@@ -79,7 +79,7 @@ class MultitaskBERT(nn.Module):
         self.last_dropout = torch.nn.Dropout(config.hidden_dropout_prob)
         self.last_sentiment = torch.nn.Linear(config.hidden_size, len(config.num_labels))
         self.last_para = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 1)
-        self.last_similar = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 1)
+        self.last_similar = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 5)
 
 
     def forward(self, input_ids, attention_mask):
@@ -128,6 +128,19 @@ class MultitaskBERT(nn.Module):
         bert_out_1 = self.forward(input_ids_1, attention_mask_1)
         bert_out_2 = self.forward(input_ids_2, attention_mask_2)
         pred = self.last_similar(self.last_dropout(bert_out_1['pooler_output']), self.last_dropout(bert_out_2['pooler_output']))
+        pred = torch.argmax(F.softmax(pred, axis=1), axis=1)
+        return pred
+    
+    def predict_similarity_train(self,
+                        input_ids_1, attention_mask_1,
+                        input_ids_2, attention_mask_2):
+        '''Given a batch of pairs of sentences, outputs a single logit corresponding to how similar they are.
+        Note that your output should be unnormalized (a logit).
+        '''
+        ### TODO
+        bert_out_1 = self.forward(input_ids_1, attention_mask_1)
+        bert_out_2 = self.forward(input_ids_2, attention_mask_2)
+        pred = self.last_similar(self.last_dropout(bert_out_1['pooler_output']), self.last_dropout(bert_out_2['pooler_output']))
         return pred
 
 def sst_loss(logits, b_labels, args):
@@ -138,7 +151,8 @@ def para_loss(logits, b_labels, args):
 
 def sts_loss(logits, b_labels, args):
     # Loss for STS task         
-    return torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
+    return F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.sst_batch_size
+    # return torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
 
 def save_model(model, optimizer, args, config, filepath):
     save_info = {
@@ -257,7 +271,7 @@ def train_PCGrad(args):
             logits_para = model.predict_paraphrase(b_para_ids_1, b_para_mask_1, b_para_ids_2, b_para_mask_2)
             l2 = para_loss(logits_para, b_para_labels, args)
 
-            logits_sts = model.predict_similarity(b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2)            
+            logits_sts = model.predict_similarity_train(b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2)            
             l3 = sts_loss(logits_sts, b_sts_labels, args)
             # Sum loss
             loss_sum = l1 + l2 + l3
@@ -388,7 +402,7 @@ def train_simultaneous(args):
             logits_para = model.predict_paraphrase(b_para_ids_1, b_para_mask_1, b_para_ids_2, b_para_mask_2)
             l2 = para_loss(logits_para, b_para_labels, args)
 
-            logits_sts = model.predict_similarity(b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2)            
+            logits_sts = model.predict_similarity_train(b_sts_ids_1, b_sts_mask_1, b_sts_ids_2, b_sts_mask_2)            
             l3 = sts_loss(logits_sts, b_sts_labels, args)
             # Sum loss
             loss = l1 + l2 + l3
@@ -580,7 +594,7 @@ def train_multitask(args):
             b_labels = b_labels.to(device)
 
             optimizer.zero_grad()
-            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)            
+            logits = model.predict_similarity_train(b_ids_1, b_mask_1, b_ids_2, b_mask_2)            
             # loss = torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
             loss = sts_loss(logits, b_labels)
 
