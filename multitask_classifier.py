@@ -263,7 +263,7 @@ def train_PCGrad(args):
             loss_sum = l1 + l2 + l3
             losses = [l1, l2, l3]
 
-            optimizer.pc_backward()
+            optimizer.pc_backward(losses)
             optimizer.step()
 
             train_loss += loss_sum.item()
@@ -281,7 +281,7 @@ def train_PCGrad(args):
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
-            save_model(model, optimizer, args, config, args.filepath)
+            save_model(model, optimizer.optimizer, args, config, args.filepath)
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
