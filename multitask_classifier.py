@@ -151,7 +151,7 @@ def para_loss(logits, b_labels, args):
 
 def sts_loss(logits, b_labels, args):
     # Loss for STS task         
-    return F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.sst_batch_size
+    return F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.sts_batch_size
     # return torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
 
 def save_model(model, optimizer, args, config, filepath):
