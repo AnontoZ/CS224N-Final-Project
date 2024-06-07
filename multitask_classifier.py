@@ -79,7 +79,7 @@ class MultitaskBERT(nn.Module):
         self.last_dropout = torch.nn.Dropout(config.hidden_dropout_prob)
         self.last_sentiment = torch.nn.Linear(config.hidden_size, len(config.num_labels))
         self.last_para = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 1)
-        self.last_similar = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 5)
+        self.last_similar = torch.nn.Bilinear(config.hidden_size, config.hidden_size, 6)
 
 
     def forward(self, input_ids, attention_mask):
@@ -128,7 +128,7 @@ class MultitaskBERT(nn.Module):
         bert_out_1 = self.forward(input_ids_1, attention_mask_1)
         bert_out_2 = self.forward(input_ids_2, attention_mask_2)
         pred = self.last_similar(self.last_dropout(bert_out_1['pooler_output']), self.last_dropout(bert_out_2['pooler_output']))
-        pred = torch.argmax(F.softmax(pred, axis=1), axis=1)
+        pred = torch.argmax(F.softmax(pred, dim=1), dim=1)
         return pred
     
     def predict_similarity_train(self,
@@ -151,7 +151,7 @@ def para_loss(logits, b_labels, args):
 
 def sts_loss(logits, b_labels, args):
     # Loss for STS task         
-    return F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.sst_batch_size
+    return F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.sts_batch_size
     # return torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
 
 def save_model(model, optimizer, args, config, filepath):
@@ -527,10 +527,8 @@ def train_multitask(args):
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
-
-    optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
-
+    
     # Run for the specified number of epochs.
     print('Training paraphrase')
     for epoch in range(args.epochs):
@@ -573,9 +571,8 @@ def train_multitask(args):
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
-    optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
-
+    # os.environ['CUDA_LAUNCH_BLOCKING']="1"
     # Run for the specified number of epochs.
     print('Training STS')
     for epoch in range(args.epochs):
@@ -596,7 +593,7 @@ def train_multitask(args):
             optimizer.zero_grad()
             logits = model.predict_similarity_train(b_ids_1, b_mask_1, b_ids_2, b_mask_2)            
             # loss = torch.sum(1 - F.cosine_similarity(logits, b_labels.view(-1))) / args.sts_batch_size
-            loss = sts_loss(logits, b_labels)
+            loss = sts_loss(logits, b_labels, args)
 
             # loss = F.mse_loss(torch.squeeze(logits.float()), b_labels.view(-1).float())
             loss.backward()
