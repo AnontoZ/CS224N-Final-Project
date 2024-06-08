@@ -8,7 +8,7 @@ required_files = [p for p in os.listdir('.') if p.endswith('.py')] + \
                  [f'predictions/{p}' for p in os.listdir('predictions')]
 
 def main(args):
-    aid = 'cs224n_default_final_project_submission_pcgrad' + args.file_suffix
+    aid = 'cs224n_default_final_project_submission' + args.file_suffix
     path = os.getcwd()
     with zipfile.ZipFile(f"{aid}.zip", 'w') as zz:
         for file in required_files:

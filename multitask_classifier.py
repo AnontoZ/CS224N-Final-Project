@@ -213,13 +213,14 @@ def train_PCGrad(args):
     config = SimpleNamespace(**config)
 
     model = MultitaskBERT(config)
-    model = model.to(device)
+    # model = model.to(device)
     
     if args.model_path is not None:
         print('Loading previously trained model')
-        model.load_state_dict(torch.load(args.model_path))
+        saved_model = torch.load(args.model_path)
+        model.load_state_dict(saved_model['model'])
         
-    
+    model = model.to(device)
     lr = args.lr
     optimizer = PCGrad(torch.optim.Adam(model.parameters(), lr=lr))
     best_dev_acc = 0
@@ -282,7 +283,7 @@ def train_PCGrad(args):
 
             train_loss += loss_sum.item()
             num_batches += 1
-
+            torch.cuda.empty_cache()
         train_loss = train_loss / (num_batches)
 
         train_acc, train_f1, *_ = model_eval_sst(sst_train_dataloader, model, device)
@@ -491,6 +492,7 @@ def train_multitask(args):
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
+    save_model(model, optimizer, args, config, args.filepath)
     # Run for the specified number of epochs.
     print('Training sentiment analysis')
     for epoch in range(args.epochs):
